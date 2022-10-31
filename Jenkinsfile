@@ -1,45 +1,48 @@
-pipeline {
-    agent none 
-    stages {
-        stage('Build') { 
-            agent {
-                docker {
-                    image 'python:2-alpine' 
-                }
-            }
-            steps {
-                sh 'python -m py_compile sources/add2vals.py sources/calc.py' 
-            }
+node {
+    stage('Build'){
+        docker.image('python:2-alpine').inside {
+            echo 'Test Poll SCM'
+            sh 'python -m py_compile sources/add2vals.py sources/calc.py'
         }
-        stage('Test') {
-            agent {
-                docker {
-                    image 'qnib/pytest'
-                }
-            }
-            steps {
+    }
+    
+    stage('Test'){
+        try {
+            docker.image('qnib/pytest').inside {
                 sh 'py.test --verbose --junit-xml test-reports/results.xml sources/test_calc.py'
             }
-            post {
-                always {
-                    junit 'test-reports/results.xml'
-                }
-            }
         }
-        stage('Deliver') {
-            agent {
-                docker {
-                    image 'cdrx/pyinstaller-linux:python2'
-                }
-            }
-            steps {
-                sh 'pyinstaller --onefile sources/add2vals.py'
-            }
-            post {
-                success {
-                    archiveArtifacts 'dist/add2vals'
-                }
-            }
+        catch (e){
+            echo 'Test Failed'
+            throw e
         }
+        finally {
+            junit 'test-reports/results.xml'
+        }
+    }
+    stage('Manual Approval'){
+        input 'Lanjutkan ke tahap Deploy?'
+    }
+    stage('Deploy'){
+            try {
+                dir('dist') {
+                    sh "docker run --rm -v /var/jenkins_home/workspace/submission-cicd-pipeline-ragillio_aji/sources:/src cdrx/pyinstaller-linux:python2 'pyinstaller -F add2vals.py'"
+                }
+            }
+            catch (e){
+                echo e
+                throw e
+            }
+            finally {
+                archiveArtifacts 'sources/dist/add2vals'
+                sh 'set -x'
+                sh "echo 'Lets Try the app'"
+                sh "echo 'move to artifacts tab and download all'"
+                sh "echo 'open terminal and change to projects folder dist and run ./add2vals 5 10'"
+                sh 'sleep 1m'
+                sh "echo '\$! > .pidfile'"
+                sh 'set +x'
+                sh "docker run --rm -v  /var/jenkins_home/workspace/submission-cicd-pipeline-ragillio_aji/sources:/src cdrx/pyinstaller-linux:python2 'rm -rf build dist'"
+            }
     }
 }
