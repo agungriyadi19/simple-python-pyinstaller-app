@@ -23,26 +23,19 @@ node {
     stage('Manual Approval'){
         input 'Lanjutkan ke tahap Deploy?'
     }
-    stage('Deploy'){
-            try {
-                dir('dist') {
-                    sh "docker run --rm -v /var/jenkins_home/workspace/test-python/sources:/src cdrx/pyinstaller-linux:python2 'pyinstaller -F add2vals.py'"
+    stage('Deploy') {
+            agent {
+                docker {
+                    image 'cdrx/pyinstaller-linux:python2'
                 }
             }
-            catch (e){
-                echo e
-                throw e
+            steps {
+                sh 'pyinstaller --onefile sources/add2vals.py'
             }
-            finally {
-                archiveArtifacts 'sources/dist/add2vals'
-                sh 'set -x'
-                sh "echo 'Lets Try the app'"
-                sh "echo 'move to artifacts tab and download all'"
-                sh "echo 'open terminal and change to projects folder dist and run ./add2vals 5 10'"
-                sh 'sleep 1m'
-                sh "echo '\$! > .pidfile'"
-                sh 'set +x'
-                sh "docker run --rm -v  /var/jenkins_home/workspace/test-python/sources:/src cdrx/pyinstaller-linux:python2 'rm -rf build dist'"
+            post {
+                success {
+                    archiveArtifacts 'dist/add2vals'
+                }
             }
-    }
+        }
 }
