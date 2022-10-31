@@ -1,48 +1,45 @@
-node {
-    stage('Build'){
-        docker.image('python:2-alpine').inside {
-            echo 'Test Poll SCM'
-            sh 'python -m py_compile sources/add2vals.py sources/calc.py'
-        }
-    }
-    
-    stage('Test'){
-        try {
-            docker.image('qnib/pytest').inside {
-                sh 'py.test --verbose --junit-xml test-reports/results.xml sources/test_calc.py'
-            }
-        }
-        catch (e){
-            echo 'Test Failed'
-            throw e
-        }
-        finally {
-            junit 'test-reports/results.xml'
-        }
-    }
-    stage('Manual Approval'){
-        input 'Lanjutkan ke tahap Deploy?'
-    }
-    stage('Deploy'){
-            try {
-                dir('dist') {
-                    sh "docker run --rm -v /var/jenkins_home/workspace/test-python/sources:/src cdrx/pyinstaller-linux:python2 'pyinstaller -F add2vals.py'"
+pipeline {
+    agent none 
+    stages {
+        stage('Build') { 
+            agent {
+                docker {
+                    image 'python:2-alpine' 
                 }
             }
-            catch (e){
-                echo e
-                throw e
+            steps {
+                sh 'python -m py_compile sources/add2vals.py sources/calc.py' 
             }
-            finally {
-                archiveArtifacts 'sources/add2vals'
-                sh 'set -x'
-                sh "echo 'Lets Try the app'"
-                sh "echo 'move to artifacts tab and download all'"
-                sh "echo 'open terminal and change to projects folder dist and run ./add2vals 5 10'"
-                sh 'sleep 1m'
-                sh "echo '\$! > .pidfile'"
-                sh 'set +x'
-                sh "docker run --rm -v  /var/jenkins_home/workspace/test-python/sources:/src cdrx/pyinstaller-linux:python2 'rm -rf build dist'"
+        }
+        stage('Test') {
+            agent {
+                docker {
+                    image 'qnib/pytest'
+                }
             }
+            steps {
+                sh 'py.test --verbose --junit-xml test-reports/results.xml sources/test_calc.py'
+            }
+            post {
+                always {
+                    junit 'test-reports/results.xml'
+                }
+            }
+        }
+        stage('Deliver') {
+            agent {
+                docker {
+                    image 'cdrx/pyinstaller-linux:python2'
+                }
+            }
+            steps {
+                sh 'pyinstaller --onefile sources/add2vals.py'
+            }
+            post {
+                success {
+                    archiveArtifacts 'dist/add2vals'
+                }
+            }
+        }
     }
 }
