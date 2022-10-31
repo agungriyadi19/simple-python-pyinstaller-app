@@ -26,7 +26,7 @@ node {
     stage('Deploy'){
             try {
                 dir('dist') {
-                    sh "docker run --rm -v /var/jenkins_home/workspace/python-test/sources:/src cdrx/pyinstaller-linux:python2 'pyinstaller -F add2vals.py'"
+                    sh "docker run --rm -v /var/jenkins_home/workspace/submission-cicd-pipeline-agung1019/sources:/src cdrx/pyinstaller-linux:python2 'pyinstaller -F add2vals.py'"
                 }
             }
             catch (e){
@@ -42,7 +42,7 @@ node {
                 sh 'sleep 1m'
                 sh "echo '\$! > .pidfile'"
                 sh 'set +x'
-                sh "docker run --rm -v  /var/jenkins_home/workspace/python-test/sources:/src cdrx/pyinstaller-linux:python2 'rm -rf build dist'"
+                sh "docker run --rm -v  /var/jenkins_home/workspace/submission-cicd-pipeline-agung1019/sources:/src cdrx/pyinstaller-linux:python2 'rm -rf build dist'"
             }
     }
 }
